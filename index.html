@@ -1351,6 +1351,10 @@ async function submitClaim() {
   const match = state.matches.find(m => m.matchId === state.pendingClaimMatchId);
   if (!match) return;
 
+  // Disable button to prevent double-submit
+  const btn = document.querySelector('#modal-claim .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
   const { error } = await sb.from('claims').insert({
     match_id: state.pendingClaimMatchId,
     claimant_player_id: state.playerId,
@@ -1359,7 +1363,13 @@ async function submitClaim() {
     confirmed: null,
   });
 
-  if (error) { toast('Failed to submit. Try again.', 'error'); return; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Submit claim'; }
+
+  if (error) {
+    console.error('Claim error:', JSON.stringify(error));
+    toast(error.message || 'Failed to submit. Try again.', 'error');
+    return;
+  }
 
   match.claimed = true;
   closeClaimModal();
@@ -1375,9 +1385,9 @@ function startClaimPolling() {
   if (_claimPollTimer) return;
   const poll = async () => {
     if (!state.playerId) return;
-    // Skip if already showing incoming claim screen
-    if (document.getElementById('screen-incoming')?.classList.contains('active')) {
-      _claimPollTimer = setTimeout(poll, 4000);
+    // Skip if already handling a claim
+    if (state.pendingIncomingClaimId) {
+      _claimPollTimer = setTimeout(poll, 2000);
       return;
     }
     const { data } = await sb.from('claims')
@@ -1390,9 +1400,9 @@ function startClaimPolling() {
       _seenClaimIds.add(data[0].id);
       handleIncomingClaim(data[0]);
     }
-    _claimPollTimer = setTimeout(poll, 4000);
+    _claimPollTimer = setTimeout(poll, 2000);
   };
-  _claimPollTimer = setTimeout(poll, 4000);
+  _claimPollTimer = setTimeout(poll, 2000);
 }
 
 // ── INCOMING CLAIM ──
