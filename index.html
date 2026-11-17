@@ -753,6 +753,14 @@ const EVENT_ID = 'f6915792-0cc0-43f1-a19d-f5da04ccff08'; // OTA 1 Year Anniversa
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ── STARTUP DIAGNOSTIC ──
+(async () => {
+  try {
+    const { data, error } = await sb.from('players').select('id').limit(1);
+    console.log('[OTA] players table ping:', error ? 'ERROR: ' + JSON.stringify(error) : 'OK, rows: ' + (data?.length ?? 0));
+  } catch(e) { console.error('[OTA] startup diagnostic failed:', e); }
+})();
+
 // ── APP STATE ──
 const state = {
   eventId: null,
@@ -1103,15 +1111,31 @@ async function submitQuiz() {
   }
   state.photoUrl = photoUrl;
 
-  const { data, error } = await sb.from('players').insert({
-    event_id: state.eventId,
-    name: state.playerName,
-    photo_url: photoUrl,
-    answers: state.answers,
-    points: 0,
-  }).select('id').single();
+  let data, error;
+  try {
+    const res = await sb.from('players').insert({
+      event_id: state.eventId,
+      name: state.playerName,
+      photo_url: photoUrl,
+      answers: state.answers,
+      points: 0,
+    }).select('id').single();
+    data = res.data;
+    error = res.error;
+  } catch(e) {
+    console.error('submitQuiz exception:', e);
+    toast('Network error: ' + (e.message || 'check console'), 'error');
+    showScreen('screen-quiz');
+    return;
+  }
 
-  if (error) { toast(error.message || 'Something went wrong. Try again.', 'error'); console.error(error); showScreen('screen-quiz'); return; }
+  if (error) {
+    console.error('Supabase insert error:', JSON.stringify(error));
+    const msg = error.message || error.details || error.hint || JSON.stringify(error);
+    toast(msg, 'error');
+    showScreen('screen-quiz');
+    return;
+  }
   state.playerId = data.id;
   saveSession();
 
@@ -1252,6 +1276,7 @@ function showGameScreen() {
   const htp = document.getElementById('how-to-play');
   if (htp) htp.style.display = 'block';
   showScreen('screen-game');
+  startClaimPolling();
 }
 
 function countInCommon(score) {
@@ -1340,6 +1365,34 @@ async function submitClaim() {
   closeClaimModal();
   renderMatchGrid();
   toast('Claim submitted! Waiting for their response.', 'success');
+}
+
+// ── POLL FOR INCOMING CLAIMS (fallback if realtime fails) ──
+let _claimPollTimer = null;
+let _seenClaimIds = new Set();
+
+function startClaimPolling() {
+  if (_claimPollTimer) return;
+  const poll = async () => {
+    if (!state.playerId) return;
+    // Skip if already showing incoming claim screen
+    if (document.getElementById('screen-incoming')?.classList.contains('active')) {
+      _claimPollTimer = setTimeout(poll, 4000);
+      return;
+    }
+    const { data } = await sb.from('claims')
+      .select('*')
+      .eq('target_player_id', state.playerId)
+      .is('confirmed', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0 && !_seenClaimIds.has(data[0].id)) {
+      _seenClaimIds.add(data[0].id);
+      handleIncomingClaim(data[0]);
+    }
+    _claimPollTimer = setTimeout(poll, 4000);
+  };
+  _claimPollTimer = setTimeout(poll, 4000);
 }
 
 // ── INCOMING CLAIM ──
