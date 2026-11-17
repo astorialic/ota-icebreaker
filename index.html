@@ -493,7 +493,7 @@
       <button class="btn btn-primary" onclick="openSpeedDate()" style="background:linear-gradient(135deg,#7C3AED,#EC4899);">
         💬 Speed Date Questions
       </button>
-      <button class="btn btn-ghost" onclick="showScreen('screen-leaderboard-player')">
+      <button class="btn btn-ghost" onclick="showScreen('screen-leaderboard-player');refreshLeaderboard()">
         View leaderboard
       </button>
     </div>
@@ -1410,16 +1410,63 @@ async function handleIncomingClaim(claim) {
 async function respondClaim(confirmed) {
   if (!state.pendingIncomingClaimId) return;
 
-  await sb.from('claims').update({ confirmed }).eq('id', state.pendingIncomingClaimId);
+  const claimId = state.pendingIncomingClaimId;
+  state.pendingIncomingClaimId = null;
 
-  if (confirmed) {
-    toast('Nice one! They earned a point.', 'success');
+  // Get the claim to find the claimant
+  const { data: claim } = await sb.from('claims').select('*').eq('id', claimId).single();
+  await sb.from('claims').update({ confirmed }).eq('id', claimId);
+
+  if (confirmed && claim) {
+    toast('✓ Confirmed! They earned a point.', 'success');
+    // Try to show things in common
+    const { data: other } = await sb.from('players').select('name, answers').eq('id', claim.claimant_player_id).single();
+    if (other && other.answers && Object.keys(state.answers).length > 0) {
+      const sharedThings = [];
+      QUESTIONS.forEach((q, i) => {
+        const myAns = state.answers[i];
+        const theirAns = other.answers[i];
+        if (myAns !== undefined && theirAns !== undefined && myAns === theirAns) {
+          sharedThings.push({ q: q.q, a: q.opts[myAns] });
+        }
+      });
+      if (sharedThings.length > 0) {
+        showCommonScreen(other.name, sharedThings);
+        return;
+      }
+    }
   } else {
-    toast('Better luck next time for them!');
+    toast('Got it — better luck next time for them!');
   }
 
-  state.pendingIncomingClaimId = null;
   showScreen('screen-game');
+}
+
+function showCommonScreen(name, shared) {
+  let el = document.getElementById('screen-common');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'screen-common';
+    el.className = 'screen';
+    el.innerHTML = `
+      <div class="topbar">
+        <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+      </div>
+      <div class="content">
+        <div class="tag" style="margin-bottom:12px;">You two vibe</div>
+        <h2 id="common-title" style="font-size:22px;font-weight:800;margin-bottom:20px;"></h2>
+        <div id="common-list"></div>
+        <button class="btn btn-primary" style="margin-top:28px;" onclick="showScreen('screen-game')">Back to game</button>
+      </div>`;
+    document.body.appendChild(el);
+  }
+  document.getElementById('common-title').textContent = `You and ${name} both…`;
+  document.getElementById('common-list').innerHTML = shared.map(s => `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${s.q}</div>
+      <div style="font-weight:700;font-size:16px;">→ ${s.a}</div>
+    </div>`).join('');
+  showScreen('screen-common');
 }
 
 // ── WIN ──
