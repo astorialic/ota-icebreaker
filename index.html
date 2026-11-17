@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTA Icebreaker</title>
+<style>
+  :root {
+    --orange: #FF5C1A;
+    --pink: #FF3F7A;
+    --coral: #FF7A5C;
+    --cream: #FFF8F5;
+    --dark: #1A0A05;
+    --muted: #8A6A5E;
+    --border: rgba(255,92,26,0.15);
+    --card: #FFFFFF;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--cream);
+    color: var(--dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -1px;
+  }
+  .logo-text { font-size: 15px; font-weight: 700; color: var(--dark); line-height: 1.1; }
+  .logo-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .topbar-right { font-size: 13px; color: var(--muted); }
+
+  /* ── CONTENT WRAPPER ── */
+  .content { flex: 1; padding: 24px 20px; max-width: 480px; margin: 0 auto; width: 100%; }
+
+  /* ── HERO / LANDING ── */
+  .hero {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; padding: 48px 24px 32px;
+  }
+  .hero-badge {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+    color: var(--orange); background: rgba(255,92,26,0.1);
+    padding: 4px 14px; border-radius: 20px; margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: 36px; font-weight: 800; line-height: 1.1;
+    color: var(--dark); margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--orange); }
+  .hero p { font-size: 16px; color: var(--muted); line-height: 1.6; margin-bottom: 32px; max-width: 320px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 14px 28px; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    border: none; transition: transform 0.1s, opacity 0.1s; width: 100%;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    color: #fff;
+  }
+  .btn-outline {
+    background: transparent; color: var(--orange);
+    border: 1.5px solid var(--orange);
+  }
+  .btn-ghost {
+    background: var(--card); color: var(--dark);
+    border: 1px solid var(--border);
+  }
+  .btn-sm { padding: 9px 18px; font-size: 13px; border-radius: 8px; width: auto; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── INPUTS ── */
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .field input[type="text"],
+  .field input[type="password"] {
+    width: 100%; padding: 13px 16px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 15px; background: var(--card); color: var(--dark);
+    outline: none; transition: border-color 0.15s;
+    font-family: var(--font);
+  }
+  .field input:focus { border-color: var(--orange); }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  /* ── QUESTION CARD ── */
+  .q-header { margin-bottom: 20px; }
+  .q-step { font-size: 12px; font-weight: 600; color: var(--orange); margin-bottom: 4px; }
+  .q-text { font-size: 20px; font-weight: 700; line-height: 1.3; color: var(--dark); }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 13px 16px; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border); background: var(--card);
+    cursor: pointer; transition: all 0.15s; text-align: left;
+  }
+  .option:hover { border-color: var(--orange); background: rgba(255,92,26,0.04); }
+  .option.selected {
+    border-color: var(--orange);
+    background: rgba(255,92,26,0.08);
+  }
+  .option-letter {
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(255,92,26,0.1); color: var(--orange);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .option.selected .option-letter {
+    background: var(--orange); color: #fff;
+  }
+  .option-text { font-size: 14px; color: var(--dark); line-height: 1.4; padding-top: 3px; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { margin-bottom: 24px; }
+  .progress-bar {
+    height: 4px; border-radius: 2px;
+    background: rgba(255,92,26,0.12);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--orange), var(--pink));
+    transition: width 0.3s ease;
+  }
+  .progress-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── PHOTO UPLOAD ── */
+  .photo-upload {
+    width: 100%; aspect-ratio: 1;
+    max-width: 200px; margin: 0 auto 20px;
+    border-radius: 50%; border: 3px dashed var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; overflow: hidden; background: rgba(255,92,26,0.04);
+    transition: border-color 0.15s;
+  }
+  .photo-upload:hover { border-color: var(--orange); }
+  .photo-upload img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-upload .upload-hint { font-size: 13px; color: var(--muted); text-align: center; padding: 16px; }
+  .photo-upload .upload-icon { font-size: 32px; margin-bottom: 6px; }
+  #photo-input { display: none; }
+
+  /* ── MATCH CARDS ── */
+  .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .match-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; text-align: center;
+    cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .match-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+  .match-card.claimed { border-color: #22c55e; background: rgba(34,197,94,0.05); }
+  .match-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    object-fit: cover; margin: 0 auto 10px;
+    border: 2px solid var(--border);
+    display: block;
+  }
+  .match-avatar-placeholder {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; color: #fff;
+    margin: 0 auto 10px;
+  }
+  .match-name { font-size: 14px; font-weight: 700; color: var(--dark); }
+  .match-score { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .match-badge {
+    position: absolute; top: 10px; right: 10px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #22c55e; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #fff;
+  }
+
+  /* ── POINTS / LEADERBOARD ── */
+  .points-display {
+    text-align: center; padding: 24px;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    border-radius: var(--radius); color: #fff; margin-bottom: 20px;
+  }
+  .points-num { font-size: 56px; font-weight: 800; line-height: 1; }
+  .points-label { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+  .points-goal { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+  .leaderboard-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .leaderboard-row:last-child { border-bottom: none; }
+  .lb-rank { font-size: 14px; font-weight: 800; color: var(--muted); min-width: 24px; }
+  .lb-rank.gold { color: #F59E0B; }
+  .lb-rank.silver { color: #94A3B8; }
+  .lb-rank.bronze { color: #B45309; }
+  .lb-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+  }
+  .lb-avatar-placeholder {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .lb-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--dark); }
+  .lb-pts {
+    font-size: 14px; font-weight: 800; color: var(--orange);
+    min-width: 48px; text-align: right;
+  }
+
+  /* ── CLAIM MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(26,10,5,0.6); z-index: 100;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--cream); border-radius: var(--radius) var(--radius) 0 0;
+    padding: 24px 20px 36px; width: 100%; max-width: 480px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-handle {
+    width: 40px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 0 auto 20px;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 14px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .claim-input {
+    width: 100%; padding: 13px 16px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 15px; background: var(--card); color: var(--dark);
+    outline: none; font-family: var(--font); resize: none;
+    transition: border-color 0.15s;
+    min-height: 80px;
+  }
+  .claim-input:focus { border-color: var(--orange); }
+
+  /* ── DIVIDER ── */
+  .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+  .divider-line { flex: 1; height: 1px; background: var(--border); }
+  .divider-text { font-size: 12px; color: var(--muted); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--dark); color: #fff; padding: 12px 20px;
+    border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+    z-index: 200; transition: transform 0.3s ease; white-space: nowrap;
+    max-width: calc(100vw - 40px); text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: #16a34a; }
+  .toast.error { background: #dc2626; }
+
+  /* ── WAITING ── */
+  .waiting-animation {
+    display: flex; gap: 8px; justify-content: center; margin: 32px 0;
+  }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--orange); animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { background: var(--pink); animation-delay: 0.2s; }
+  .dot:nth-child(3) { background: var(--coral); animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-16px); }
+  }
+
+  /* ── WIN SCREEN ── */
+  .win-screen {
+    text-align: center; padding: 48px 24px;
+  }
+  .win-emoji { font-size: 64px; margin-bottom: 16px; }
+  .win-screen h2 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+  .win-screen p { font-size: 16px; color: var(--muted); }
+
+  /* ── ADMIN ── */
+  .admin-stat {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 16px 20px;
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .admin-stat-label { font-size: 13px; color: var(--muted); }
+  .admin-stat-value { font-size: 24px; font-weight: 800; color: var(--dark); }
+
+  .event-code-display {
+    text-align: center; padding: 32px;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    border-radius: var(--radius); color: #fff; margin-bottom: 20px;
+  }
+  .event-code-display .code-label { font-size: 13px; opacity: 0.8; margin-bottom: 8px; }
+  .event-code-display .code { font-size: 48px; font-weight: 800; letter-spacing: 8px; }
+  .event-code-display .code-sub { font-size: 13px; opacity: 0.7; margin-top: 8px; }
+
+  .tab-bar {
+    display: flex; gap: 0; margin-bottom: 20px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .tab {
+    flex: 1; padding: 10px; text-align: center;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--muted); background: var(--card); border: none;
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--orange); color: #fff; }
+
+  /* ── UTILS ── */
+  .text-center { text-align: center; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-8 { margin-bottom: 8px; }
+  .gap-8 { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 10px; }
+  .row .btn { flex: 1; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .highlight { color: var(--orange); }
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,92,26,0.1); color: var(--orange);
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     SCREEN: LANDING
+═════════════════════════════════════════ -->
+<div id="screen-landing" class="screen active">
+  <div class="hero">
+    <div class="logo-mark" id="landing-logo" style="width:64px;height:64px;font-size:28px;margin-bottom:20px;border-radius:18px;">OTA</div>
+    <div class="hero-badge">Off The Apps</div>
+    <h1>OTA<br><span>Icebreaker</span></h1>
+    <p>Find your crew. Prove you were paying attention. Win the room.</p>
+  </div>
+  <div class="content" style="padding-top:0;">
+    <button class="btn btn-primary" onclick="startQuiz()">Play</button>
+    <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;color:var(--muted);" onclick="showScreen('screen-admin-login')">Host</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: JOIN
+═════════════════════════════════════════ -->
+<div id="screen-join" class="screen">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">OTA</div>
+      <div><div class="logo-text">Icebreaker</div></div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">Back</button>
+  </div>
+  <div class="content">
+    <div style="margin-bottom:28px;">
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:6px;">Enter event code</h2>
+      <p style="font-size:14px;color:var(--muted);">Get the 6-character code from your host.</p>
+    </div>
+    <div class="field">
+      <label>Event code</label>
+      <input type="text" id="join-code" maxlength="6" placeholder="e.g. PARTY1"
+        style="text-transform:uppercase;font-size:24px;letter-spacing:6px;font-weight:700;"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <button class="btn btn-primary" onclick="joinEvent()">Continue</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: QUIZ (name → photo → questions)
+═════════════════════════════════════════ -->
+<div id="screen-quiz" class="screen">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">OTA</div>
+      <div><div class="logo-text">Icebreaker</div></div>
+    </div>
+    <div class="topbar-right" id="quiz-topbar-right"></div>
+  </div>
+  <div class="content">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label"></div>
+    </div>
+    <div id="quiz-step-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: WAITING FOR MATCHES
+═════════════════════════════════════════ -->
+<div id="screen-waiting" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+  </div>
+  <div class="content text-center">
+    <div style="padding-top:40px;">
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">Finding your crew</h2>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:0;">Hang tight while everyone finishes the quiz.</p>
+      <div class="waiting-animation"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <p style="font-size:13px;color:var(--muted);" id="waiting-status">Waiting for others...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: MATCHES / GAME
+═════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+    <div class="topbar-right">
+      <span id="game-points-topbar" style="font-weight:800;color:var(--orange);font-size:15px;"></span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- HOW TO PLAY — inline, dismissible -->
+    <div id="how-to-play" style="background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.06em;">How to play</div>
+        <button onclick="document.getElementById('how-to-play').style.display='none'"
+          style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);line-height:1;padding:0;">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+          <div style="font-size:13px;color:var(--dark);line-height:1.4;padding-top:4px;"><strong>Find</strong> each person on your list in the room.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+          <div style="font-size:13px;color:var(--dark);line-height:1.4;padding-top:4px;"><strong>Talk to them</strong> and figure out something you both answered the same way.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+          <div style="font-size:13px;color:var(--dark);line-height:1.4;padding-top:4px;"><strong>Tap their card</strong> and submit a claim — they confirm it and you earn a point.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🏆</div>
+          <div style="font-size:13px;color:var(--dark);line-height:1.4;padding-top:4px;"><strong>First to 5 points</strong> wins the room.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="points-display">
+      <div class="points-num" id="game-points">0</div>
+      <div class="points-label">points</div>
+      <div class="points-goal">First to 5 wins</div>
+    </div>
+
+    <div class="section-title">Your crew — find them, talk to them</div>
+    <div class="match-grid" id="match-grid"></div>
+
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary" onclick="openSpeedDate()" style="background:linear-gradient(135deg,#7C3AED,#EC4899);">
+        💬 Speed Date Questions
+      </button>
+      <button class="btn btn-ghost" onclick="showScreen('screen-leaderboard-player')">
+        View leaderboard
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: SPEED DATE
+═════════════════════════════════════════ -->
+<div id="screen-speed-date" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark" style="background:linear-gradient(135deg,#7C3AED,#EC4899);">OTA</div><div><div class="logo-text">Speed Date</div></div></div>
+    <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-game')">Back</button>
+  </div>
+  <div class="content">
+
+    <!-- DECK PICKER -->
+    <div id="sd-deck-picker">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:22px;font-weight:800;margin-bottom:6px;">Pick a vibe</h2>
+        <p style="font-size:14px;color:var(--muted);">You and your date both see the same question. Tap <em>Next</em> to shuffle to the next one — it'll never repeat.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="startDeck('fun')" style="background:#fff;border:2px solid #FDE68A;border-radius:var(--radius);padding:20px 18px;text-align:left;cursor:pointer;width:100%;">
+          <div style="font-size:22px;margin-bottom:6px;">😄</div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark);">Light & Fun</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Easy conversation starters. Good for getting comfortable.</div>
+        </button>
+        <button onclick="startDeck('deep')" style="background:#fff;border:2px solid #A5B4FC;border-radius:var(--radius);padding:20px 18px;text-align:left;cursor:pointer;width:100%;">
+          <div style="font-size:22px;margin-bottom:6px;">🔮</div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark);">Deeper</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Get past the small talk. For when you actually want to know someone.</div>
+        </button>
+        <button onclick="startDeck('spicy')" style="background:#fff;border:2px solid #FCA5A5;border-radius:var(--radius);padding:20px 18px;text-align:left;cursor:pointer;width:100%;">
+          <div style="font-size:22px;margin-bottom:6px;">🌶️</div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark);">Spicy</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Bold questions. Use at your own risk.</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- QUESTION CARD -->
+    <div id="sd-question-view" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div id="sd-deck-label" style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);"></div>
+        <button onclick="showDeckPicker()" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--orange);font-weight:600;">Switch deck</button>
+      </div>
+
+      <div id="sd-question-card" style="background:#fff;border-radius:20px;padding:32px 24px;text-align:center;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px solid var(--border);margin-bottom:20px;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+        <div id="sd-q-number" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:16px;letter-spacing:0.04em;"></div>
+        <div id="sd-q-text" style="font-size:22px;font-weight:700;color:var(--dark);line-height:1.35;"></div>
+      </div>
+
+      <div id="sd-done-msg" style="display:none;text-align:center;padding:24px;background:rgba(255,92,26,0.06);border-radius:var(--radius);margin-bottom:20px;">
+        <div style="font-size:32px;margin-bottom:8px;">🎉</div>
+        <div style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:4px;">You went through all of them!</div>
+        <div style="font-size:14px;color:var(--muted);">Switch to another deck or head back.</div>
+      </div>
+
+      <button id="sd-next-btn" class="btn btn-primary" onclick="nextQuestion()" style="background:linear-gradient(135deg,#7C3AED,#EC4899);">
+        Next question →
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: CLAIM CHALLENGE (modal style)
+═════════════════════════════════════════ -->
+<div id="modal-claim" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 id="claim-modal-title">What do you know about them?</h3>
+    <p id="claim-modal-desc">Share one thing you learned from talking to this person.</p>
+    <textarea class="claim-input" id="claim-text" placeholder="e.g. They pick Netflix as their workout..."></textarea>
+    <div class="mt-16 gap-8">
+      <button class="btn btn-primary" onclick="submitClaim()">Submit claim</button>
+      <button class="btn btn-ghost" onclick="closeClaimModal()">Not yet</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: INCOMING CLAIM
+═════════════════════════════════════════ -->
+<div id="screen-incoming" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+  </div>
+  <div class="content">
+    <div style="padding-top:16px;">
+      <div class="tag" style="margin-bottom:16px;">Incoming claim</div>
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:8px;" id="incoming-from">Someone says they know you</h2>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:24px;">They claim:</p>
+      <div class="card" style="font-size:18px;font-weight:600;color:var(--dark);line-height:1.5;" id="incoming-claim-text"></div>
+      <p style="font-size:13px;color:var(--muted);margin-top:12px;margin-bottom:24px;">Is this true? If they got it right, they earn a point.</p>
+      <div class="gap-8">
+        <button class="btn btn-primary" onclick="respondClaim(true)">Yep, that's me</button>
+        <button class="btn btn-outline" onclick="respondClaim(false)">Nope, they're wrong</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: PLAYER LEADERBOARD
+═════════════════════════════════════════ -->
+<div id="screen-leaderboard-player" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+    <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-game')">Back</button>
+  </div>
+  <div class="content">
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:20px;">Leaderboard</h2>
+    <div id="player-leaderboard-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: WIN
+═════════════════════════════════════════ -->
+<div id="screen-win" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+  </div>
+  <div class="win-screen">
+    <div class="win-emoji">🏆</div>
+    <h2>You won!</h2>
+    <p id="win-message">You were the first to connect with your entire crew.</p>
+    <div style="margin-top:32px;">
+      <button class="btn btn-primary" style="max-width:280px;margin:0 auto;" onclick="showScreen('screen-leaderboard-player');refreshLeaderboard()">See final standings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: ADMIN LOGIN
+═════════════════════════════════════════ -->
+<div id="screen-admin-login" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker</div></div></div>
+    <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">Back</button>
+  </div>
+  <div class="content">
+    <div style="margin-bottom:28px;">
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:6px;">Host login</h2>
+      <p style="font-size:14px;color:var(--muted);">Enter your host password to manage events.</p>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="admin-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="adminLogin()">Sign in as host</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: ADMIN DASHBOARD
+═════════════════════════════════════════ -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-mark">OTA</div><div><div class="logo-text">Icebreaker — Host</div></div></div>
+    <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-landing')">Exit</button>
+  </div>
+  <div class="content">
+    <div id="admin-no-event" style="display:none;">
+      <p style="color:var(--muted);font-size:14px;">Loading event…</p>
+    </div>
+
+    <div id="admin-active-event" style="display:none;">
+      <div class="event-code-display">
+        <div class="code-label">Share this code with guests</div>
+        <div class="code" id="admin-code-display"></div>
+        <div class="code-sub" id="admin-event-name-display"></div>
+      </div>
+
+      <div class="tab-bar" style="overflow-x:auto;white-space:nowrap;">
+        <button class="tab active" onclick="adminTab('overview')" id="tab-overview">Overview</button>
+        <button class="tab" onclick="adminTab('leaderboard')" id="tab-leaderboard">Scores</button>
+        <button class="tab" onclick="adminTab('players')" id="tab-players">Players</button>
+        <button class="tab" onclick="adminTab('instructions')" id="tab-instructions">How to Play</button>
+      </div>
+
+      <div id="admin-tab-overview">
+        <div class="admin-stat">
+          <div><div class="admin-stat-label">Players joined</div><div class="admin-stat-value" id="stat-players">0</div></div>
+        </div>
+        <div class="admin-stat">
+          <div><div class="admin-stat-label">Matches made</div><div class="admin-stat-value" id="stat-matches">0</div></div>
+        </div>
+        <div class="admin-stat">
+          <div><div class="admin-stat-label">Claims submitted</div><div class="admin-stat-value" id="stat-claims">0</div></div>
+        </div>
+        <div class="mt-16 gap-8">
+          <button class="btn btn-primary" onclick="runMatching()" id="btn-run-matching">Run matching</button>
+        </div>
+        <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--border);">
+          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:12px;">Danger zone</p>
+          <div class="gap-8">
+            <button class="btn btn-ghost" style="font-size:12px;color:var(--muted);" onclick="exportCSV()">↓ Export data</button>
+            <button class="btn btn-ghost" style="font-size:12px;color:#dc2626;" onclick="clearRoom()">Clear room</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="admin-tab-leaderboard" style="display:none;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Project this screen for the room.</p>
+        <div id="admin-leaderboard-list"></div>
+      </div>
+
+      <div id="admin-tab-players" style="display:none;">
+        <div id="admin-players-list"></div>
+      </div>
+
+      <div id="admin-tab-instructions" style="display:none;">
+        <div style="font-size:14px;line-height:1.7;color:var(--text);">
+          <p style="font-weight:800;font-size:16px;margin-bottom:16px;">How OTA Icebreaker works</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">1 · Players join</p>
+          <p style="margin-bottom:16px;">Everyone opens the app and taps <strong>Play</strong>. They enter their name, optionally add a photo, then answer 8 questions.</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">2 · Run matching</p>
+          <p style="margin-bottom:16px;">Once enough players have joined, tap <strong>Run matching</strong> on the Overview tab. Each player gets 4 matches based on their answers.</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">3 · Find your matches</p>
+          <p style="margin-bottom:16px;">Players see their 4 matches with how many things they have in common. They go find each person in the room and have a real conversation.</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">4 · Claim points</p>
+          <p style="margin-bottom:16px;">After talking, tap a match card and write one thing you learned about them. If they confirm it — you both get a point.</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">5 · Win</p>
+          <p style="margin-bottom:16px;">First person to reach <strong>5 points</strong> wins. Check the Scores tab for the live leaderboard.</p>
+          <p style="font-weight:700;color:var(--orange);margin-bottom:4px;">Host tips</p>
+          <ul style="padding-left:18px;margin-bottom:0;">
+            <li style="margin-bottom:6px;">Wait until at least 10 players have joined before running matching</li>
+            <li style="margin-bottom:6px;">Announce "matching is live" so everyone checks their phones</li>
+            <li style="margin-bottom:6px;">Speed date decks are under the 🎯 tab on each player's game screen</li>
+            <li>Use <strong>Clear room</strong> to wipe all player data and start fresh</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TOAST
+═════════════════════════════════════════ -->
+<div id="toast" class="toast"></div>
+
+<!-- ════════════════════════════════════════
+     SUPABASE + APP LOGIC
+═════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── CONFIG ── replace with your Supabase project values ──
+const SUPABASE_URL = 'https://tnzwzesxjenxygeraeui.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_nLGZYGtV-BXSjQkTCjeZLQ_MDaRnvVT';
+const ADMIN_PASSWORD = 'ota2026'; // change this
+const EVENT_ID = 'f6915792-0cc0-43f1-a19d-f5da04ccff08'; // OTA 1 Year Anniversary
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── APP STATE ──
+const state = {
+  eventId: null,
+  eventCode: null,
+  playerId: null,
+  playerName: null,
+  photoUrl: null,
+  answers: {},       // { q_index: option_index }
+  matches: [],       // [{id, name, photo_url, score, claimed, claim_confirmed}]
+  points: 0,
+  quizStep: 0,       // 0=name, 1=photo, 2-6=questions
+  pendingClaimMatchId: null,
+  pendingIncomingClaimId: null,
+  photoFile: null,
+  realtimeChannel: null,
+};
+
+// ── QUESTIONS ──
+const QUESTIONS = [
+  {
+    q: "Your social battery is…",
+    opts: ["Extrovert — love a crowd", "Introvert — recharge solo", "Depends who I'm with", "50/50", "Currently on 2%"]
+  },
+  {
+    q: "Attachment style?",
+    opts: ["Anxious", "Avoidant", "Anxious-Avoidant", "Secure", "Attachment what?"]
+  },
+  {
+    q: "Love language?",
+    opts: ["Words of affirmation", "Quality time", "Acts of service", "Gift-giving", "Going to therapy about it"]
+  },
+  {
+    q: "Your ideal hangout:",
+    opts: ["Dinner somewhere nice", "Drinks & see where it goes", "Activity (mini golf, arcade…)", "Walk & talk", "Cancel and reschedule twice"]
+  },
+  {
+    q: "Conflict style?",
+    opts: ["Address it immediately", "Need space first, then talk", "Avoid it and hope it dissolves", "Passive aggressive (working on it)", "Win at all costs"]
+  },
+  {
+    q: "Travel mode:",
+    opts: ["Planned itinerary", "Spontaneous, figure it out", "Beach and do nothing", "Cultural deep-dive", "Work called, postponed again"]
+  },
+  {
+    q: "At a party you're…",
+    opts: ["Hosting and in my element", "Working the room", "Deep convo with one person", "Near the snack table", "Gone by 10pm"]
+  },
+  {
+    q: "You're here tonight because…",
+    opts: ["Looking for something real", "Supporting a friend", "My therapist suggested it", "All of the above", "Still figuring that out"]
+  }
+];
+const TOTAL_STEPS = 2 + QUESTIONS.length; // name + photo + 8 questions
+
+// ── SCREEN NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── TOAST ──
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── SESSION PERSISTENCE ──
+function saveSession() {
+  try {
+    localStorage.setItem('ota_session', JSON.stringify({
+      eventId: state.eventId,
+      playerId: state.playerId,
+      playerName: state.playerName,
+      quizStep: state.quizStep,
+      answers: state.answers,
+      points: state.points,
+    }));
+  } catch(e) {}
+}
+
+function clearSession() {
+  try { localStorage.removeItem('ota_session'); } catch(e) {}
+}
+
+async function restoreSession() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ota_session') || 'null');
+    if (!saved || saved.eventId !== EVENT_ID) return false;
+
+    state.eventId = saved.eventId;
+    state.playerName = saved.playerName;
+    state.answers = saved.answers || {};
+    state.points = saved.points || 0;
+
+    // If they already submitted, restore to game/waiting
+    if (saved.playerId) {
+      state.playerId = saved.playerId;
+      // Check if matches exist
+      const { data: mRows } = await sb.from('matches')
+        .select('id, player_b_id, score')
+        .eq('player_a_id', state.playerId);
+      let data = null;
+      if (mRows && mRows.length > 0) {
+        const { data: pRows } = await sb.from('players')
+          .select('id, name, photo_url, points')
+          .in('id', mRows.map(m => m.player_b_id));
+        const pMap = Object.fromEntries((pRows || []).map(p => [p.id, p]));
+        data = mRows.map(m => ({ ...m, players: pMap[m.player_b_id] || { id: m.player_b_id, name: '?', photo_url: null, points: 0 } }));
+      }
+      const { count: pc } = await sb.from('players')
+        .select('id', { count: 'exact', head: true }).eq('event_id', EVENT_ID);
+      const minMatches = Math.min(4, Math.max(1, (pc || 1) - 1));
+      if (data && data.length >= minMatches) {
+        state.matches = data.map(m => ({
+          matchId: m.id, id: m.players.id, name: m.players.name,
+          photo_url: m.players.photo_url, score: m.score,
+          points: m.players.points, claimed: false, claim_confirmed: false,
+        }));
+        subscribeToUpdates();
+        showGameScreen();
+        return true;
+      }
+      // Submitted but waiting for matches — try matchmaking again then poll
+      await runMatchmaking(state.playerId, state.answers);
+      subscribeToUpdates();
+      pollForMatches();
+      showScreen('screen-waiting');
+      return true;
+    }
+
+    // Mid-quiz — restore to where they left off
+    if (saved.playerName && saved.quizStep > 0) {
+      state.quizStep = saved.quizStep;
+      renderQuizStep();
+      showScreen('screen-quiz');
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ── START QUIZ (no join code — event ID hardcoded) ──
+let _logoTaps = 0, _logoTimer = null;
+document.addEventListener('DOMContentLoaded', async () => {
+  const logo = document.getElementById('landing-logo');
+  if (logo) logo.addEventListener('click', () => {
+    _logoTaps++;
+    clearTimeout(_logoTimer);
+    _logoTimer = setTimeout(() => _logoTaps = 0, 2000);
+    if (_logoTaps >= 5) { _logoTaps = 0; showScreen('screen-admin-login'); }
+  });
+  // Try to restore a previous session
+  await restoreSession();
+});
+
+function startQuiz() {
+  clearSession();
+  state.eventId = EVENT_ID;
+  state.eventCode = '';
+  state.playerId = null;
+  state.playerName = null;
+  state.answers = {};
+  state.quizStep = 0;
+  state.matches = [];
+  state.points = 0;
+  renderQuizStep();
+  showScreen('screen-quiz');
+}
+
+// ── QUIZ RENDERING ──
+function renderQuizStep() {
+  const step = state.quizStep;
+  const fill = ((step) / TOTAL_STEPS) * 100;
+  document.getElementById('progress-fill').style.width = fill + '%';
+  document.getElementById('progress-label').textContent = `Step ${step + 1} of ${TOTAL_STEPS}`;
+  document.getElementById('quiz-topbar-right').textContent = state.eventCode || '';
+
+  const container = document.getElementById('quiz-step-content');
+
+  if (step === 0) {
+    // NAME
+    container.innerHTML = `
+      <div class="q-header">
+        <div class="q-step">Step 1 of ${TOTAL_STEPS}</div>
+        <div class="q-text">What's your name?</div>
+      </div>
+      <div class="field">
+        <input type="text" id="name-input" placeholder="Your first name" value="${state.playerName || ''}"
+          style="font-size:22px;font-weight:700;" maxlength="40">
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">💡 If you've played before, enter the same name to pick up where you left off.</div>
+      </div>
+      <button class="btn btn-primary" onclick="quizNextName()">Continue</button>`;
+    setTimeout(() => document.getElementById('name-input')?.focus(), 100);
+
+  } else if (step === 1) {
+    // PHOTO
+    container.innerHTML = `
+      <div class="q-header">
+        <div class="q-step">Step 2 of ${TOTAL_STEPS}</div>
+        <div class="q-text">Add a photo so people can spot you in the room</div>
+      </div>
+      <div class="photo-upload" onclick="document.getElementById('photo-input').click()">
+        ${state.photoUrl
+          ? `<img src="${state.photoUrl}" alt="Your photo">`
+          : `<div class="upload-hint"><div class="upload-icon">📷</div>Tap to add a photo</div>`}
+      </div>
+      <input type="file" id="photo-input" accept="image/*" onchange="handlePhotoUpload(event)">
+      <div class="gap-8">
+        <button class="btn btn-primary" onclick="quizNextPhoto()">Continue</button>
+        <button class="btn btn-ghost" onclick="quizNextPhoto()">Skip for now</button>
+        <button class="btn btn-ghost" style="margin-top:4px;" onclick="quizBack()">← Back</button>
+      </div>`;
+
+  } else {
+    // MCQ
+    const qi = step - 2;
+    const q = QUESTIONS[qi];
+    const letters = ['A','B','C','D','E','F'];
+    const selected = state.answers[qi] ?? -1;
+
+    container.innerHTML = `
+      <div class="q-header">
+        <div class="q-step">Step ${step + 1} of ${TOTAL_STEPS}</div>
+        <div class="q-text">${q.q}</div>
+      </div>
+      <div class="options">
+        ${q.opts.map((o, i) => `
+          <div class="option${selected === i ? ' selected' : ''}" onclick="selectOption(${qi}, ${i}, this)">
+            <div class="option-letter">${letters[i]}</div>
+            <div class="option-text">${o}</div>
+          </div>`).join('')}
+      </div>
+      <button class="btn btn-primary mt-24" id="q-next-btn" onclick="quizNextQuestion(${qi})"
+        ${selected === -1 ? 'disabled' : ''}>
+        ${step === TOTAL_STEPS - 1 ? 'Submit and find my crew' : 'Next'}
+      </button>
+      <button class="btn btn-ghost" style="margin-top:8px;" onclick="quizBack()">← Back</button>`;
+  }
+}
+
+function selectOption(qi, i, el) {
+  state.answers[qi] = i;
+  document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('q-next-btn').disabled = false;
+}
+
+async function quizNextName() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) { toast('Enter your name to continue', 'error'); return; }
+  state.playerName = name;
+
+  // Check if this name already has a player record for this event
+  const { data: existing } = await sb.from('players')
+    .select('id, answers, points')
+    .eq('event_id', EVENT_ID)
+    .ilike('name', name)
+    .maybeSingle();
+
+  if (existing) {
+    state.playerId = existing.id;
+    state.answers = existing.answers || {};
+    state.points = existing.points || 0;
+    saveSession();
+    toast('Welcome back, ' + name + '!', 'success');
+    // Check for existing matches
+    const { data: mRowsN } = await sb.from('matches')
+      .select('id, player_b_id, score').eq('player_a_id', existing.id);
+    let matches = null;
+    if (mRowsN && mRowsN.length > 0) {
+      const { data: pRowsN } = await sb.from('players')
+        .select('id, name, photo_url, points').in('id', mRowsN.map(m => m.player_b_id));
+      const pMapN = Object.fromEntries((pRowsN || []).map(p => [p.id, p]));
+      matches = mRowsN.map(m => ({ ...m, players: pMapN[m.player_b_id] || { id: m.player_b_id, name: '?', photo_url: null, points: 0 } }));
+    }
+    const { count: pcN } = await sb.from('players').select('id', { count: 'exact', head: true }).eq('event_id', EVENT_ID);
+    const minN = Math.min(4, Math.max(1, (pcN || 1) - 1));
+    if (matches && matches.length >= minN) {
+      state.matches = matches.map(m => ({
+        matchId: m.id, id: m.players.id, name: m.players.name,
+        photo_url: m.players.photo_url, score: m.score,
+        points: m.players.points, claimed: false, claim_confirmed: false,
+      }));
+      subscribeToUpdates();
+      showGameScreen();
+    } else {
+      subscribeToUpdates();
+      pollForMatches();
+      showScreen('screen-waiting');
+    }
+    return;
+  }
+
+  state.quizStep++;
+  saveSession();
+  renderQuizStep();
+}
+
+function quizNextPhoto() {
+  state.quizStep++;
+  saveSession();
+  renderQuizStep();
+}
+
+function quizBack() {
+  if (state.quizStep <= 0) { showScreen('screen-landing'); return; }
+  state.quizStep--;
+  saveSession();
+  renderQuizStep();
+}
+
+function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  state.photoFile = file;
+  state.photoUrl = URL.createObjectURL(file);
+  renderQuizStep();
+}
+
+async function quizNextQuestion(qi) {
+  if (state.answers[qi] === undefined) { toast('Pick an option first', 'error'); return; }
+  if (state.quizStep < TOTAL_STEPS - 1) {
+    state.quizStep++;
+    saveSession();
+    renderQuizStep();
+  } else {
+    await submitQuiz();
+  }
+}
+
+// ── SUBMIT QUIZ ──
+async function submitQuiz() {
+  showScreen('screen-waiting');
+
+  let photoUrl = null;
+  if (state.photoFile) {
+    const ext = state.photoFile.name.split('.').pop();
+    const path = `${state.eventId}/${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('player-photos').upload(path, state.photoFile, { upsert: true });
+    if (!upErr) {
+      const { data: urlData } = sb.storage.from('player-photos').getPublicUrl(path);
+      photoUrl = urlData.publicUrl;
+    }
+  }
+  state.photoUrl = photoUrl;
+
+  const { data, error } = await sb.from('players').insert({
+    event_id: state.eventId,
+    name: state.playerName,
+    photo_url: photoUrl,
+    answers: state.answers,
+    points: 0,
+  }).select('id').single();
+
+  if (error) { toast(error.message || 'Something went wrong. Try again.', 'error'); console.error(error); showScreen('screen-quiz'); return; }
+  state.playerId = data.id;
+  saveSession();
+
+  // Run matchmaking for this player
+  await runMatchmaking(state.playerId, state.answers);
+  subscribeToUpdates();
+  pollForMatches();
+}
+
+// ── MATCHMAKING ──
+function computeScore(answersA, answersB) {
+  const keys = Object.keys(answersA);
+  if (!keys.length) return 0;
+  let matches = 0;
+  keys.forEach(k => { if (answersA[k] === answersB[k]) matches++; });
+  return matches / QUESTIONS.length;
+}
+
+async function runMatchmaking(playerId, myAnswers) {
+  // Fetch all other players who don't already have a match with me
+  const { data: others } = await sb.from('players')
+    .select('id, name, photo_url, answers, points')
+    .eq('event_id', EVENT_ID)
+    .neq('id', playerId);
+
+  if (!others || others.length === 0) return;
+
+  // Check which matches already exist for me
+  const { data: existingMatches } = await sb.from('matches')
+    .select('player_b_id')
+    .eq('player_a_id', playerId);
+  const existingIds = new Set((existingMatches || []).map(m => m.player_b_id));
+
+  // Score and sort all others
+  const scored = others
+    .filter(o => !existingIds.has(o.id))
+    .map(o => ({ ...o, score: computeScore(myAnswers, o.answers || {}) }))
+    .sort((a, b) => b.score - a.score);
+
+  // Take top 4 (or fewer if not enough players)
+  const top = scored.slice(0, 4);
+  if (top.length === 0) return;
+
+  // Insert matches (both directions so both players can find each other)
+  const rows = top.flatMap(o => [
+    { event_id: EVENT_ID, player_a_id: playerId, player_b_id: o.id, score: o.score },
+    { event_id: EVENT_ID, player_a_id: o.id, player_b_id: playerId, score: o.score },
+  ]);
+
+  const { error: matchErr } = await sb.from('matches').upsert(rows, {
+    onConflict: 'player_a_id,player_b_id',
+    ignoreDuplicates: true,
+  });
+  if (matchErr) { console.error('Match insert error:', matchErr); toast('Match error: ' + matchErr.message, 'error'); }
+}
+
+// ── POLL FOR MATCHES ──
+async function pollForMatches() {
+  const check = async () => {
+    // First get match rows
+    const { data: matchRows, error: matchFetchErr } = await sb.from('matches')
+      .select('id, player_b_id, score')
+      .eq('player_a_id', state.playerId);
+    console.log('matchRows', matchRows, matchFetchErr);
+
+    // Then fetch the player details separately
+    let data = null;
+    if (matchRows && matchRows.length > 0) {
+      const playerIds = matchRows.map(m => m.player_b_id);
+      const { data: playerRows } = await sb.from('players')
+        .select('id, name, photo_url, points')
+        .in('id', playerIds);
+      const playerMap = Object.fromEntries((playerRows || []).map(p => [p.id, p]));
+      data = matchRows.map(m => ({
+        ...m,
+        players: playerMap[m.player_b_id] || { id: m.player_b_id, name: '?', photo_url: null, points: 0 }
+      }));
+    }
+
+    const MIN_MATCHES = 4;
+    const needed = Math.min(MIN_MATCHES, /* total players - 1 checked below */ 999);
+
+    // Also check how many total players exist so we don't wait for 4 if only 2 people are here
+    const { count } = await sb.from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', EVENT_ID);
+    const available = Math.min(MIN_MATCHES, Math.max(1, (count || 1) - 1));
+
+    console.log('Poll: matches found', data?.length, 'need', available, 'total players', count);
+    if (data && data.length >= available) {
+      state.matches = data.map(m => ({
+        matchId: m.id,
+        id: m.players.id,
+        name: m.players.name,
+        photo_url: m.players.photo_url,
+        score: m.score,
+        points: m.players.points,
+        claimed: false,
+        claim_confirmed: false,
+      }));
+      showGameScreen();
+    } else {
+      document.getElementById('waiting-status').textContent =
+        data ? `${data.length} of ${available} matches ready...` : 'Waiting for others...';
+      setTimeout(check, 3000);
+    }
+  };
+  check();
+}
+
+// ── REALTIME SUBSCRIPTIONS ──
+function subscribeToUpdates() {
+  if (state.realtimeChannel) sb.removeChannel(state.realtimeChannel);
+
+  state.realtimeChannel = sb.channel(`event-${state.eventId}`)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'claims',
+      filter: `target_player_id=eq.${state.playerId}`
+    }, payload => {
+      handleIncomingClaim(payload.new);
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public', table: 'players',
+      filter: `id=eq.${state.playerId}`
+    }, payload => {
+      state.points = payload.new.points;
+      updatePointsDisplay();
+      if (state.points >= 5) showWinScreen();
+    })
+    .subscribe();
+}
+
+// ── GAME SCREEN ──
+function showGameScreen() {
+  renderMatchGrid();
+  updatePointsDisplay();
+  // Show how-to-play panel fresh each time
+  const htp = document.getElementById('how-to-play');
+  if (htp) htp.style.display = 'block';
+  showScreen('screen-game');
+}
+
+function countInCommon(score) {
+  // score is 0-1; convert to a "things in common" count out of QUESTIONS.length
+  // We count exact answer matches directly from state.answers vs match answers
+  // but we only have score from DB, so approximate: round(score * QUESTIONS.length)
+  return Math.max(1, Math.round(score * QUESTIONS.length));
+}
+
+function renderMatchGrid() {
+  const grid = document.getElementById('match-grid');
+  grid.innerHTML = state.matches.map(m => {
+    const initial = m.name.charAt(0).toUpperCase();
+    // Always show initials in the grid — photo revealed only in modal
+    const avatar = `<div class="match-avatar-placeholder">${initial}</div>`;
+    const claimed = m.claimed;
+    const inCommon = countInCommon(m.score);
+    return `
+      <div class="match-card${claimed ? ' claimed' : ''}" onclick="openClaimModal('${m.matchId}','${m.name}')">
+        ${claimed ? '<div class="match-badge">✓</div>' : ''}
+        ${avatar}
+        <div class="match-name">${m.name}</div>
+        <div class="match-score">${inCommon} thing${inCommon !== 1 ? 's' : ''} in common</div>
+        ${claimed ? '<div style="font-size:11px;color:#16a34a;margin-top:4px;font-weight:600;">Claim submitted</div>' : '<div style="font-size:11px;color:var(--muted);margin-top:4px;">Tap to claim</div>'}
+      </div>`;
+  }).join('');
+}
+
+function updatePointsDisplay() {
+  document.getElementById('game-points').textContent = state.points;
+  document.getElementById('game-points-topbar').textContent = `${state.points} pts`;
+}
+
+// ── CLAIM MODAL ──
+function openClaimModal(matchId, name) {
+  const match = state.matches.find(m => m.matchId === matchId);
+  if (match && match.claimed) { toast('Already submitted a claim for ' + name); return; }
+  state.pendingClaimMatchId = matchId;
+  document.getElementById('claim-modal-title').textContent = `What do you know about ${name}?`;
+  document.getElementById('claim-modal-desc').textContent =
+    `Write something you learned about ${name} — from the quiz or your conversation.`;
+  document.getElementById('claim-text').value = '';
+  // Show photo in modal if available
+  let photoEl = document.getElementById('claim-modal-photo');
+  if (!photoEl) {
+    photoEl = document.createElement('div');
+    photoEl.id = 'claim-modal-photo';
+    photoEl.style.cssText = 'text-align:center;margin-bottom:12px;';
+    const title = document.getElementById('claim-modal-title');
+    title.parentNode.insertBefore(photoEl, title);
+  }
+  if (match && match.photo_url) {
+    photoEl.innerHTML = `<img src="${match.photo_url}" alt="${name}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
+    photoEl.style.display = 'block';
+  } else {
+    const initial = name.charAt(0).toUpperCase();
+    photoEl.innerHTML = `<div style="width:72px;height:72px;border-radius:50%;background:var(--orange);color:#fff;font-size:28px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto;">${initial}</div>`;
+    photoEl.style.display = 'block';
+  }
+  document.getElementById('modal-claim').classList.add('open');
+}
+
+function closeClaimModal() {
+  document.getElementById('modal-claim').classList.remove('open');
+  state.pendingClaimMatchId = null;
+}
+
+async function submitClaim() {
+  const text = document.getElementById('claim-text').value.trim();
+  if (!text) { toast('Write something about them first', 'error'); return; }
+
+  const match = state.matches.find(m => m.matchId === state.pendingClaimMatchId);
+  if (!match) return;
+
+  const { error } = await sb.from('claims').insert({
+    match_id: state.pendingClaimMatchId,
+    claimant_player_id: state.playerId,
+    target_player_id: match.id,
+    claim_text: text,
+    confirmed: null,
+  });
+
+  if (error) { toast('Failed to submit. Try again.', 'error'); return; }
+
+  match.claimed = true;
+  closeClaimModal();
+  renderMatchGrid();
+  toast('Claim submitted! Waiting for their response.', 'success');
+}
+
+// ── INCOMING CLAIM ──
+async function handleIncomingClaim(claim) {
+  state.pendingIncomingClaimId = claim.id;
+
+  const { data: claimant } = await sb.from('players').select('name').eq('id', claim.claimant_player_id).single();
+  const name = claimant?.name || 'Someone';
+
+  document.getElementById('incoming-from').textContent = `${name} thinks they know you`;
+  document.getElementById('incoming-claim-text').textContent = `"${claim.claim_text}"`;
+  showScreen('screen-incoming');
+}
+
+async function respondClaim(confirmed) {
+  if (!state.pendingIncomingClaimId) return;
+
+  await sb.from('claims').update({ confirmed }).eq('id', state.pendingIncomingClaimId);
+
+  if (confirmed) {
+    toast('Nice one! They earned a point.', 'success');
+  } else {
+    toast('Better luck next time for them!');
+  }
+
+  state.pendingIncomingClaimId = null;
+  showScreen('screen-game');
+}
+
+// ── WIN ──
+function showWinScreen() {
+  document.getElementById('win-message').textContent =
+    `You connected with all your crew, ${state.playerName}. That's how you do it.`;
+  showScreen('screen-win');
+}
+
+// ── LEADERBOARD ──
+async function refreshLeaderboard() {
+  const { data } = await sb.from('players')
+    .select('id,name,photo_url,points')
+    .eq('event_id', state.eventId)
+    .order('points', { ascending: false })
+    .limit(20);
+
+  renderLeaderboard(data || [], 'player-leaderboard-list');
+}
+
+function renderLeaderboard(players, containerId) {
+  const ranks = ['🥇','🥈','🥉'];
+  const rankClasses = ['gold','silver','bronze'];
+  const el = document.getElementById(containerId);
+  el.innerHTML = players.map((p, i) => {
+    const initial = p.name.charAt(0).toUpperCase();
+    const avatar = p.photo_url
+      ? `<img class="lb-avatar" src="${p.photo_url}" alt="${p.name}">`
+      : `<div class="lb-avatar-placeholder">${initial}</div>`;
+    const rank = i < 3 ? `<span class="lb-rank ${rankClasses[i]}">${ranks[i]}</span>` : `<span class="lb-rank">${i+1}</span>`;
+    const isMe = p.id === state.playerId ? ' style="background:rgba(255,92,26,0.06);border-radius:8px;padding:0 4px;"' : '';
+    return `<div class="leaderboard-row"${isMe}>${rank}${avatar}<div class="lb-name">${p.name}${p.id === state.playerId ? ' (you)' : ''}</div><div class="lb-pts">${p.points} pts</div></div>`;
+  }).join('');
+}
+
+// ── ADMIN ──
+function adminLogin() {
+  const pw = document.getElementById('admin-password').value;
+  if (pw !== ADMIN_PASSWORD) { toast('Wrong password', 'error'); return; }
+  showScreen('screen-admin');
+  loadHardcodedEvent();
+}
+
+async function loadHardcodedEvent() {
+  const { data, error } = await sb.from('events').select('*').eq('id', EVENT_ID).single();
+  if (error || !data) { toast('Event not found. Check EVENT_ID in code.', 'error'); return; }
+  loadAdminEvent(data);
+}
+
+function loadAdminEvent(event) {
+  state.eventId = event.id;
+  state.eventCode = event.code;
+  localStorage.setItem('ota_event_id', event.id);
+  document.getElementById('admin-no-event').style.display = 'none';
+  document.getElementById('admin-active-event').style.display = 'block';
+  document.getElementById('admin-code-display').textContent = event.code;
+  document.getElementById('admin-event-name-display').textContent = event.name;
+  refreshAdminStats();
+  setInterval(refreshAdminStats, 5000);
+}
+
+async function createEvent() {
+  const name = document.getElementById('event-name-input').value.trim();
+  if (!name) { toast('Give your event a name', 'error'); return; }
+  const code = Math.random().toString(36).substring(2,8).toUpperCase();
+  const { data, error } = await sb.from('events').insert({ name, code, status: 'active' }).select().single();
+  if (error) { toast('Failed to create event: ' + error.message, 'error'); console.error(error); return; }
+  loadAdminEvent(data);
+}
+
+async function refreshAdminStats() {
+  if (!state.eventId) return;
+  const [players, matches, claims] = await Promise.all([
+    sb.from('players').select('id,name,photo_url,points', { count: 'exact' }).eq('event_id', state.eventId),
+    sb.from('matches').select('id', { count: 'exact' }).eq('event_id', state.eventId),
+    sb.from('claims').select('id', { count: 'exact' })
+      .in('match_id', (await sb.from('matches').select('id').eq('event_id', state.eventId)).data?.map(m=>m.id) || [])
+  ]);
+  document.getElementById('stat-players').textContent = players.count || 0;
+  document.getElementById('stat-matches').textContent = Math.floor((matches.count || 0) / 2);
+  document.getElementById('stat-claims').textContent = claims.count || 0;
+
+  const playerData = players.data || [];
+  renderLeaderboard([...playerData].sort((a,b)=>b.points-a.points), 'admin-leaderboard-list');
+  renderAdminPlayers(playerData);
+}
+
+function renderAdminPlayers(players) {
+  const el = document.getElementById('admin-players-list');
+  if (!el) return;
+  el.innerHTML = players.map(p => {
+    const initial = p.name.charAt(0).toUpperCase();
+    const avatar = p.photo_url
+      ? `<img class="lb-avatar" src="${p.photo_url}" alt="${p.name}">`
+      : `<div class="lb-avatar-placeholder">${initial}</div>`;
+    return `<div class="leaderboard-row">${avatar}<div class="lb-name">${p.name}</div><div class="lb-pts">${p.points} pts</div></div>`;
+  }).join('');
+}
+
+async function runMatching() {
+  document.getElementById('btn-run-matching').disabled = true;
+  document.getElementById('btn-run-matching').textContent = 'Running...';
+
+  const { data: players } = await sb.from('players')
+    .select('id,answers').eq('event_id', state.eventId).eq('quiz_complete', true);
+
+  if (!players || players.length < 2) {
+    toast('Need at least 2 players to match', 'error');
+    document.getElementById('btn-run-matching').disabled = false;
+    document.getElementById('btn-run-matching').textContent = 'Run matching';
+    return;
+  }
+
+  const scores = [];
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i], b = players[j];
+      let matches = 0, total = QUESTIONS.length;
+      for (let q = 0; q < total; q++) {
+        if (a.answers[q] !== undefined && b.answers[q] !== undefined && a.answers[q] === b.answers[q]) matches++;
+      }
+      scores.push({ a: a.id, b: b.id, score: matches / total });
+    }
+  }
+
+  // For each player, pick top 4 compatible matches
+  const matchInserts = [];
+  const seen = new Set();
+  for (const p of players) {
+    const myScores = scores.filter(s => s.a === p.id || s.b === p.id)
+      .map(s => ({ otherId: s.a === p.id ? s.b : s.a, score: s.score }))
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 4);
+
+    for (const ms of myScores) {
+      const key = [p.id, ms.otherId].sort().join('-');
+      if (!seen.has(key)) {
+        seen.add(key);
+        matchInserts.push({ event_id: state.eventId, player_a_id: p.id, player_b_id: ms.otherId, score: ms.score });
+        matchInserts.push({ event_id: state.eventId, player_a_id: ms.otherId, player_b_id: p.id, score: ms.score });
+      }
+    }
+  }
+
+  await sb.from('matches').insert(matchInserts);
+  toast(`Matching complete! ${matchInserts.length / 2} pairs made.`, 'success');
+  document.getElementById('btn-run-matching').textContent = 'Re-run matching';
+  document.getElementById('btn-run-matching').disabled = false;
+  refreshAdminStats();
+}
+
+async function endEvent() {
+  if (!confirm('End this event? Players will no longer be able to join.')) return;
+  await sb.from('events').update({ status: 'ended' }).eq('id', state.eventId);
+  localStorage.removeItem('ota_event_id');
+  toast('Event ended.');
+  showScreen('screen-landing');
+}
+
+// ── ADMIN TABS ──
+function adminTab(name) {
+  ['overview','leaderboard','players','instructions'].forEach(t => {
+    document.getElementById(`admin-tab-${t}`).style.display = t === name ? 'block' : 'none';
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+  });
+  if (name === 'leaderboard' || name === 'players') refreshAdminStats();
+}
+
+// ── EXPORT CSV ──
+async function exportCSV() {
+  const { data: players } = await sb.from('players')
+    .select('name,points,answers,quiz_complete,created_at')
+    .eq('event_id', state.eventId)
+    .order('points', { ascending: false });
+  if (!players || !players.length) { toast('No players to export', 'error'); return; }
+
+  const headers = ['Name','Points','Quiz Complete','Joined'].concat(
+    QUESTIONS.map((q, i) => `Q${i+1}: ${q.q.substring(0,30)}`)
+  );
+  const rows = players.map(p => [
+    p.name,
+    p.points,
+    p.quiz_complete ? 'Yes' : 'No',
+    new Date(p.created_at).toLocaleString(),
+    ...QUESTIONS.map((q, i) => p.answers?.[i] !== undefined ? q.opts[p.answers[i]] : '')
+  ]);
+
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ota-icebreaker-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('Exported!', 'success');
+}
+
+// ── CLEAR ROOM ──
+async function clearRoom() {
+  if (!confirm('Delete ALL players, matches, and claims for this event? This cannot be undone.')) return;
+  if (!confirm('Are you sure? Everyone will be removed from the game.')) return;
+  const { data: matchIds } = await sb.from('matches').select('id').eq('event_id', state.eventId);
+  if (matchIds?.length) {
+    await sb.from('claims').delete().in('match_id', matchIds.map(m => m.id));
+  }
+  await sb.from('matches').delete().eq('event_id', state.eventId);
+  await sb.from('players').delete().eq('event_id', state.eventId);
+  toast('Room cleared.', 'success');
+  refreshAdminStats();
+}
+
+// ── LEADERBOARD REFRESH ON SHOW ──
+document.getElementById('screen-leaderboard-player').addEventListener('transitionend', refreshLeaderboard);
+
+// ══════════════════════════════════════════════════
+// SPEED DATE DECKS
+// ══════════════════════════════════════════════════
+const SD_DECKS = {
+  fun: {
+    label: '😄 Light & Fun',
+    color: '#D97706',
+    questions: [
+      "What's the most NYC thing that happened to you this week?",
+      "Hot take: what's the most overrated thing in New York?",
+      "If you had to eat one cuisine for the rest of your life, what are you choosing?",
+      "What's your go-to karaoke song — be honest.",
+      "What's the weirdest thing you've ever seen on the subway?",
+      "Morning person or night owl — and no, you can't say 'it depends.'",
+      "What's a totally useless skill you're surprisingly good at?",
+      "If your friends had to describe you in three words, what would they actually say?",
+      "What show are you currently watching that you'd be embarrassed to admit?",
+      "What's your most controversial food opinion?",
+      "What's the last thing you did for the first time?",
+      "If you could only keep three apps on your phone, which ones survive?",
+      "What's your version of a perfect Sunday?",
+      "What's something you're terrible at that you've just accepted about yourself?",
+      "If you had a walk-up song for entering a room, what would it be?",
+      "What's the best compliment someone could give you that isn't about how you look?",
+      "What do you do when you have an unexpected free afternoon?",
+      "What's a place in NYC you haven't been to but keep meaning to go?",
+      "Would you rather always be 10 minutes early or always 10 minutes late?",
+      "What's something you thought you'd hate but actually love?",
+    ]
+  },
+  deep: {
+    label: '🔮 Deeper',
+    color: '#5B21B6',
+    questions: [
+      "What's something you changed your mind on in the last couple of years?",
+      "What's something you've never done but think you'd be really good at?",
+      "What's the best advice someone actually gave you that you actually followed?",
+      "What does your ideal life look like in five years — be specific.",
+      "What's something you're proud of that you never really get to talk about?",
+      "What would your younger self be surprised to know about you now?",
+      "What's something most people get wrong about you at first?",
+      "When you're stressed, what's the thing you actually do — not the thing you tell people you do?",
+      "What's a value you hold that most people around you don't share?",
+      "What's something you're still figuring out?",
+      "What made you move to — or stay in — New York?",
+      "What's the most important thing you learned from a past relationship?",
+      "What's something you've let go of that you thought you never would?",
+      "What does friendship mean to you, actually?",
+      "What's something you've been meaning to start that you keep putting off?",
+      "What's the last thing that genuinely surprised you about yourself?",
+      "What's something you do just for yourself that no one else really knows about?",
+      "What's something you wish people asked you more often?",
+      "If you could fix one thing about how you communicate with people, what would it be?",
+      "What's a moment in the last year that stuck with you more than you expected?",
+    ]
+  },
+  spicy: {
+    label: '🌶️ Spicy',
+    color: '#B91C1C',
+    questions: [
+      "What's your dealbreaker that you've actually broken before?",
+      "What's something you find attractive that you're slightly embarrassed to admit?",
+      "What's the most ridiculous reason you've had for not texting someone back?",
+      "What's your honest opinion of situationships?",
+      "What do people usually get wrong about what you need in a relationship?",
+      "Have you ever been the one who ended something you shouldn't have?",
+      "What's the worst date you've been on — keep it vague enough to protect the innocent.",
+      "What's something a person can do in the first five minutes that makes you decide you're out?",
+      "What's your honest green flag — something that immediately makes you more interested?",
+      "What's something you refuse to compromise on in a relationship?",
+      "Who usually catches feelings first — you or them?",
+      "What's something about dating in New York that genuinely bothers you?",
+      "Have you ever dated someone your friends didn't like? Who was right?",
+      "What's something you thought you wanted in a partner that turned out not to matter?",
+      "What's your honest take on long-distance?",
+      "When you like someone, do you make it obvious or do you go cold?",
+      "What's something a past relationship taught you about yourself that wasn't flattering?",
+      "What do you think you bring to a relationship that most people don't?",
+      "What's the last thing you wanted to say to someone but didn't?",
+      "If we went on a second date, what would you want to do?",
+    ]
+  }
+};
+
+const sdState = {
+  currentDeck: null,
+  shuffled: [],
+  index: 0,
+};
+
+function openSpeedDate() {
+  showDeckPicker();
+  showScreen('screen-speed-date');
+}
+
+function showDeckPicker() {
+  document.getElementById('sd-deck-picker').style.display = 'block';
+  document.getElementById('sd-question-view').style.display = 'none';
+}
+
+function startDeck(deckKey) {
+  const deck = SD_DECKS[deckKey];
+  sdState.currentDeck = deckKey;
+  // Fisher-Yates shuffle
+  sdState.shuffled = [...deck.questions];
+  for (let i = sdState.shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sdState.shuffled[i], sdState.shuffled[j]] = [sdState.shuffled[j], sdState.shuffled[i]];
+  }
+  sdState.index = 0;
+
+  document.getElementById('sd-deck-picker').style.display = 'none';
+  document.getElementById('sd-question-view').style.display = 'block';
+  document.getElementById('sd-deck-label').textContent = deck.label;
+  document.getElementById('sd-deck-label').style.color = deck.color;
+  document.getElementById('sd-next-btn').style.background = `linear-gradient(135deg, ${deck.color}, ${deck.color}cc)`;
+
+  showCurrentQuestion();
+}
+
+function showCurrentQuestion() {
+  const total = sdState.shuffled.length;
+  const idx = sdState.index;
+  const doneMsg = document.getElementById('sd-done-msg');
+  const card = document.getElementById('sd-question-card');
+  const nextBtn = document.getElementById('sd-next-btn');
+
+  if (idx >= total) {
+    // All done
+    card.style.display = 'none';
+    doneMsg.style.display = 'block';
+    nextBtn.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'flex';
+  doneMsg.style.display = 'none';
+  nextBtn.style.display = 'flex';
+
+  document.getElementById('sd-q-number').textContent = `Question ${idx + 1} of ${total}`;
+  document.getElementById('sd-q-text').textContent = sdState.shuffled[idx];
+
+  // Animate card
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(10px)';
+  requestAnimationFrame(() => {
+    card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  });
+}
+
+function nextQuestion() {
+  sdState.index++;
+  showCurrentQuestion();
+}
+</script>
+</body>
+</html>
